@@ -83,12 +83,58 @@
             padding: 10px;
             margin: 8px 0;
             border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .qr-content {
+            word-break: break-all;
+            flex: 1;
+        }
+        .copy-btn {
+            background: #38a169;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .copy-btn:hover {
+            background: #2f855a;
+        }
+        .copy-btn.copied {
+            background: #718096;
         }
         .error {
             color: #c53030;
             background: #fff5f5;
             padding: 10px;
             border-radius: 6px;
+        }
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        .toast.show {
+            opacity: 1;
         }
     </style>
 </head>
@@ -108,6 +154,8 @@
         
         <div id="result" class="result" style="display: none;"></div>
     </div>
+    
+    <div id="toast" class="toast">¡Copiado al portapapeles!</div>
 
     <!-- Biblioteca jsQR desde CDN -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
@@ -118,6 +166,7 @@
         const previewImg = document.getElementById('preview');
         const scanBtn = document.getElementById('scanBtn');
         const resultDiv = document.getElementById('result');
+        const toast = document.getElementById('toast');
         let selectedFile = null;
 
         // Manejar clic en la zona de subida
@@ -144,7 +193,7 @@
             dropZone.style.background = '';
             const files = e.dataTransfer.files;
             if (files.length) {
-                fileInput.files = files; // asigna al input
+                fileInput.files = files;
                 handleFileSelect({ target: fileInput });
             }
         });
@@ -153,7 +202,6 @@
             const file = event.target.files[0];
             if (!file) return;
             selectedFile = file;
-            // Mostrar vista previa
             const reader = new FileReader();
             reader.onload = function(e) {
                 previewImg.src = e.target.result;
@@ -175,19 +223,16 @@
         function scanQR(file) {
             const img = new Image();
             img.onload = function() {
-                // Crear canvas y dibujar imagen
                 const canvas = document.createElement('canvas');
                 canvas.width = img.width;
                 canvas.height = img.height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0);
                 
-                // Obtener datos de píxeles
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 
-                // Usar jsQR para decodificar
                 const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                    inversionAttempts: "dontInvert", // Puede ser "attemptBoth" para imágenes invertidas
+                    inversionAttempts: "dontInvert",
                 });
 
                 if (code) {
@@ -195,12 +240,14 @@
                     resultDiv.innerHTML = `
                         <h3>✅ Código QR detectado</h3>
                         <div class="qr-item">
-                            <strong>Contenido:</strong> ${escapeHtml(code.data)}
+                            <span class="qr-content"><strong>Contenido:</strong> ${escapeHtml(code.data)}</span>
+                            <button class="copy-btn" onclick="copyToClipboard('${escapeHtml(code.data).replace(/'/g, "\\'")}')">
+                                📋 Copiar
+                            </button>
                         </div>
                         <p><small>Tipo: ${code.binaryData ? 'Binario' : 'Texto'} | Ubicación: (${code.location.topLeftCorner.x}, ${code.location.topLeftCorner.y})</small></p>
                     `;
                 } else {
-                    // Intentar con inversión de color (por si acaso)
                     const codeInverted = jsQR(imageData.data, imageData.width, imageData.height, {
                         inversionAttempts: "attemptBoth"
                     });
@@ -209,7 +256,10 @@
                         resultDiv.innerHTML = `
                             <h3>✅ Código QR detectado (imagen invertida)</h3>
                             <div class="qr-item">
-                                <strong>Contenido:</strong> ${escapeHtml(codeInverted.data)}
+                                <span class="qr-content"><strong>Contenido:</strong> ${escapeHtml(codeInverted.data)}</span>
+                                <button class="copy-btn" onclick="copyToClipboard('${escapeHtml(codeInverted.data).replace(/'/g, "\\'")}')">
+                                    📋 Copiar
+                                </button>
                             </div>
                         `;
                     } else {
@@ -223,6 +273,48 @@
                 resultDiv.innerHTML = `<div class="error">❌ No se pudo cargar la imagen. El formato puede no ser compatible con este navegador.</div>`;
             };
             img.src = URL.createObjectURL(file);
+        }
+
+        // Función para copiar al portapapeles
+        function copyToClipboard(text) {
+            // Usar la API moderna del portapapeles
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showCopiedFeedback();
+                });
+            } else {
+                // Fallback para navegadores antiguos
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-9999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showCopiedFeedback();
+                } catch (err) {
+                    alert('No se pudo copiar el texto.');
+                }
+                document.body.removeChild(textArea);
+            }
+        }
+
+        function showCopiedFeedback() {
+            // Cambiar el texto del botón a "¡Copiado!" temporalmente
+            const buttons = document.querySelectorAll('.copy-btn');
+            buttons.forEach(btn => {
+                btn.innerHTML = '✅ ¡Copiado!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.innerHTML = '📋 Copiar';
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+            // Mostrar un toast
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
         }
 
         // Función para evitar XSS al mostrar contenido del QR
