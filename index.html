@@ -3,33 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lector de Códigos QR desde Imagen</title>
+    <title>QR Suite - Lector y Generador</title>
     <style>
+        :root {
+            --primary: #2b6cb0;
+            --primary-dark: #2c5282;
+            --success: #38a169;
+            --success-dark: #2f855a;
+            --bg: #f0f4f8;
+            --card: white;
+            --text: #2d3748;
+            --border: #e2e8f0;
+            --radius: 16px;
+            --shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f0f4f8;
+            background: var(--bg);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            margin: 0;
             padding: 20px;
-            box-sizing: border-box;
         }
         .container {
-            background: white;
-            border-radius: 16px;
+            background: var(--card);
+            border-radius: var(--radius);
             padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            max-width: 500px;
+            box-shadow: var(--shadow);
+            max-width: 550px;
             width: 100%;
             text-align: center;
         }
         h1 {
             color: #1a365d;
-            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1.8rem;
         }
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 20px;
+        }
+        .tab {
+            flex: 1;
+            padding: 12px;
+            font-weight: 600;
+            color: #718096;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 3px solid transparent;
+            background: none;
+            border: none;
+            font-size: 16px;
+        }
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+        .panel {
+            display: none;
+        }
+        .panel.active {
+            display: block;
+        }
+
+        /* Lector */
         .upload-area {
             border: 2px dashed #a0aec0;
             border-radius: 12px;
@@ -45,7 +90,7 @@
             display: none;
         }
         .btn {
-            background: #2b6cb0;
+            background: var(--primary);
             color: white;
             border: none;
             padding: 12px 24px;
@@ -53,9 +98,16 @@
             font-size: 16px;
             cursor: pointer;
             transition: background 0.3s;
+            margin: 5px;
         }
         .btn:hover {
-            background: #2c5282;
+            background: var(--primary-dark);
+        }
+        .btn-success {
+            background: var(--success);
+        }
+        .btn-success:hover {
+            background: var(--success-dark);
         }
         .preview {
             max-width: 100%;
@@ -73,10 +125,6 @@
             text-align: left;
             word-wrap: break-word;
         }
-        .result h3 {
-            margin-top: 0;
-            color: #2d3748;
-        }
         .qr-item {
             background: #ebf8ff;
             border-left: 4px solid #3182ce;
@@ -93,8 +141,8 @@
             word-break: break-all;
             flex: 1;
         }
-        .copy-btn {
-            background: #38a169;
+        .copy-btn, .download-btn {
+            background: var(--success);
             color: white;
             border: none;
             padding: 6px 14px;
@@ -102,14 +150,14 @@
             font-size: 14px;
             cursor: pointer;
             transition: background 0.2s;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 4px;
         }
-        .copy-btn:hover {
-            background: #2f855a;
+        .copy-btn:hover, .download-btn:hover {
+            background: var(--success-dark);
         }
-        .copy-btn.copied {
+        .copy-btn.copied, .download-btn.copied {
             background: #718096;
         }
         .error {
@@ -117,6 +165,62 @@
             background: #fff5f5;
             padding: 10px;
             border-radius: 6px;
+            margin-top: 10px;
+        }
+
+        /* Generador */
+        .gen-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .gen-panel label {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 5px;
+            text-align: left;
+            color: var(--text);
+        }
+        .gen-panel textarea, .gen-panel input[type="text"], .gen-panel input[type="number"], .gen-panel select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border 0.3s;
+            font-family: inherit;
+        }
+        .gen-panel textarea:focus, .gen-panel input:focus, .gen-panel select:focus {
+            border-color: var(--primary);
+            outline: none;
+        }
+        .row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .col {
+            flex: 1;
+            min-width: 120px;
+        }
+        #qrcode-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px dotted var(--border);
+            min-height: 200px;
+            align-items: center;
+        }
+        #qrcode-container img, #qrcode-container canvas {
+            max-width: 100%;
+            height: auto;
+        }
+        .placeholder-text {
+            color: #a0aec0;
+            font-style: italic;
         }
         .toast {
             position: fixed;
@@ -136,31 +240,94 @@
         .toast.show {
             opacity: 1;
         }
+        @media (max-width: 480px) {
+            .container { padding: 20px; }
+            .row { flex-direction: column; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📷 Lector de QR desde Imagen</h1>
-        <p>Selecciona una imagen que contenga uno o más códigos QR</p>
-        
-        <div class="upload-area" id="dropZone">
-            <p>🖼️ Arrastra y suelta una imagen aquí<br>o haz clic para seleccionar</p>
-            <input type="file" id="fileInput" accept="image/*">
+        <h1>🛠️ QR Suite</h1>
+        <div class="tabs">
+            <button class="tab active" data-panel="reader">📷 Lector</button>
+            <button class="tab" data-panel="generator">✨ Generador</button>
         </div>
-        
-        <button class="btn" id="scanBtn">🔍 Escanear QR</button>
-        
-        <img id="preview" class="preview" alt="Vista previa">
-        
-        <div id="result" class="result" style="display: none;"></div>
+
+        <!-- PANEL LECTOR -->
+        <div id="reader" class="panel active">
+            <p>Selecciona una imagen con código QR</p>
+            <div class="upload-area" id="dropZone">
+                <p>🖼️ Arrastra y suelta una imagen aquí<br>o haz clic para seleccionar</p>
+                <input type="file" id="fileInput" accept="image/*">
+            </div>
+            <button class="btn" id="scanBtn">🔍 Escanear QR</button>
+            <img id="preview" class="preview" alt="Vista previa">
+            <div id="result" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- PANEL GENERADOR -->
+        <div id="generator" class="panel">
+            <div class="gen-panel">
+                <div>
+                    <label for="qrText">🔤 Texto o URL:</label>
+                    <textarea id="qrText" rows="3" placeholder="Escribe el contenido para generar el QR..."></textarea>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <label for="qrSize">📏 Tamaño (px):</label>
+                        <input type="number" id="qrSize" value="200" min="100" max="600" step="10">
+                    </div>
+                    <div class="col">
+                        <label for="qrCorrection">🛡️ Corrección:</label>
+                        <select id="qrCorrection">
+                            <option value="L">Baja (L)</option>
+                            <option value="M" selected>Media (M)</option>
+                            <option value="Q">Alta (Q)</option>
+                            <option value="H">Máxima (H)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <label for="qrColor">🎨 Color QR:</label>
+                        <input type="color" id="qrColor" value="#000000">
+                    </div>
+                    <div class="col">
+                        <label for="qrBgColor">🖌️ Color fondo:</label>
+                        <input type="color" id="qrBgColor" value="#ffffff">
+                    </div>
+                </div>
+                <div>
+                    <button class="btn" id="generateBtn">🔮 Generar QR</button>
+                    <button class="btn btn-success" id="downloadBtn" style="display:none;">⬇️ Descargar PNG</button>
+                </div>
+                <div id="qrcode-container">
+                    <p class="placeholder-text">Aquí aparecerá tu código QR</p>
+                </div>
+            </div>
+        </div>
     </div>
-    
     <div id="toast" class="toast">¡Copiado al portapapeles!</div>
 
-    <!-- Biblioteca jsQR desde CDN -->
+    <!-- Librerías -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
     <script>
+        // ----- Navegación por pestañas -----
+        const tabs = document.querySelectorAll('.tab');
+        const panels = document.querySelectorAll('.panel');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                panels.forEach(p => p.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.panel).classList.add('active');
+            });
+        });
+
+        // ----- LECTOR QR -----
         const fileInput = document.getElementById('fileInput');
         const dropZone = document.getElementById('dropZone');
         const previewImg = document.getElementById('preview');
@@ -169,13 +336,9 @@
         const toast = document.getElementById('toast');
         let selectedFile = null;
 
-        // Manejar clic en la zona de subida
         dropZone.addEventListener('click', () => fileInput.click());
-
-        // Manejar selección por input
         fileInput.addEventListener('change', handleFileSelect);
 
-        // Prevenir comportamiento por defecto en drag & drop
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             dropZone.addEventListener(eventName, preventDefaults, false);
             document.body.addEventListener(eventName, preventDefaults, false);
@@ -186,7 +349,6 @@
             e.stopPropagation();
         }
 
-        // Resaltar zona al arrastrar
         dropZone.addEventListener('dragover', () => dropZone.style.background = '#ebf4ff');
         dropZone.addEventListener('dragleave', () => dropZone.style.background = '');
         dropZone.addEventListener('drop', (e) => {
@@ -211,7 +373,6 @@
             resultDiv.style.display = 'none';
         }
 
-        // Escanear al hacer clic
         scanBtn.addEventListener('click', () => {
             if (!selectedFile) {
                 alert('Por favor selecciona una imagen primero.');
@@ -228,62 +389,44 @@
                 canvas.height = img.height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0);
-                
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 
-                const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                    inversionAttempts: "dontInvert",
-                });
-
+                const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
                 if (code) {
-                    resultDiv.style.display = 'block';
-                    resultDiv.innerHTML = `
-                        <h3>✅ Código QR detectado</h3>
-                        <div class="qr-item">
-                            <span class="qr-content"><strong>Contenido:</strong> ${escapeHtml(code.data)}</span>
-                            <button class="copy-btn" onclick="copyToClipboard('${escapeHtml(code.data).replace(/'/g, "\\'")}')">
-                                📋 Copiar
-                            </button>
-                        </div>
-                        <p><small>Tipo: ${code.binaryData ? 'Binario' : 'Texto'} | Ubicación: (${code.location.topLeftCorner.x}, ${code.location.topLeftCorner.y})</small></p>
-                    `;
+                    showReaderResult(code.data, false);
                 } else {
-                    const codeInverted = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: "attemptBoth"
-                    });
+                    const codeInverted = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
                     if (codeInverted) {
-                        resultDiv.style.display = 'block';
-                        resultDiv.innerHTML = `
-                            <h3>✅ Código QR detectado (imagen invertida)</h3>
-                            <div class="qr-item">
-                                <span class="qr-content"><strong>Contenido:</strong> ${escapeHtml(codeInverted.data)}</span>
-                                <button class="copy-btn" onclick="copyToClipboard('${escapeHtml(codeInverted.data).replace(/'/g, "\\'")}')">
-                                    📋 Copiar
-                                </button>
-                            </div>
-                        `;
+                        showReaderResult(codeInverted.data, true);
                     } else {
                         resultDiv.style.display = 'block';
-                        resultDiv.innerHTML = `<div class="error">❌ No se encontró ningún código QR en la imagen. Asegúrate de que el código esté completo y bien enfocado.</div>`;
+                        resultDiv.innerHTML = '<div class="error">❌ No se encontró ningún código QR en la imagen.</div>';
                     }
                 }
             };
             img.onerror = function() {
                 resultDiv.style.display = 'block';
-                resultDiv.innerHTML = `<div class="error">❌ No se pudo cargar la imagen. El formato puede no ser compatible con este navegador.</div>`;
+                resultDiv.innerHTML = '<div class="error">❌ No se pudo cargar la imagen. Formato no compatible.</div>';
             };
             img.src = URL.createObjectURL(file);
         }
 
-        // Función para copiar al portapapeles
+        function showReaderResult(data, inverted) {
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = `
+                <h3>✅ Código QR detectado ${inverted ? '(imagen invertida)' : ''}</h3>
+                <div class="qr-item">
+                    <span class="qr-content"><strong>Contenido:</strong> ${escapeHtml(data)}</span>
+                    <button class="copy-btn" onclick="copyToClipboard('${escapeHtml(data).replace(/'/g, "\\'")}')">📋 Copiar</button>
+                </div>
+            `;
+        }
+
+        // Función de copiar (compartida)
         function copyToClipboard(text) {
-            // Usar la API moderna del portapapeles
             if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(text).then(() => {
-                    showCopiedFeedback();
-                });
+                navigator.clipboard.writeText(text).then(showToast.bind(null, '¡Copiado al portapapeles!'));
             } else {
-                // Fallback para navegadores antiguos
                 const textArea = document.createElement("textarea");
                 textArea.value = text;
                 textArea.style.position = "fixed";
@@ -293,16 +436,13 @@
                 textArea.select();
                 try {
                     document.execCommand('copy');
-                    showCopiedFeedback();
+                    showToast('¡Copiado al portapapeles!');
                 } catch (err) {
                     alert('No se pudo copiar el texto.');
                 }
                 document.body.removeChild(textArea);
             }
-        }
-
-        function showCopiedFeedback() {
-            // Cambiar el texto del botón a "¡Copiado!" temporalmente
+            // Feedback en botón
             const buttons = document.querySelectorAll('.copy-btn');
             buttons.forEach(btn => {
                 btn.innerHTML = '✅ ¡Copiado!';
@@ -312,22 +452,78 @@
                     btn.classList.remove('copied');
                 }, 2000);
             });
-            // Mostrar un toast
+        }
+
+        function showToast(message) {
+            toast.textContent = message;
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 2000);
         }
 
-        // Función para evitar XSS al mostrar contenido del QR
         function escapeHtml(text) {
-            const map = {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;'
-            };
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
             return text.replace(/[&<>"']/g, m => map[m]);
         }
+
+        // ----- GENERADOR QR -----
+        const qrText = document.getElementById('qrText');
+        const qrSize = document.getElementById('qrSize');
+        const qrCorrection = document.getElementById('qrCorrection');
+        const qrColor = document.getElementById('qrColor');
+        const qrBgColor = document.getElementById('qrBgColor');
+        const generateBtn = document.getElementById('generateBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const qrContainer = document.getElementById('qrcode-container');
+        let currentQR = null; // Para descargar
+
+        generateBtn.addEventListener('click', generateQR);
+        // Opcional: generar automáticamente al escribir (con debounce)
+        let debounceTimer;
+        qrText.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(generateQR, 500);
+        });
+
+        function generateQR() {
+            const text = qrText.value.trim();
+            if (!text) {
+                qrContainer.innerHTML = '<p class="placeholder-text">Escribe algo para generar el QR</p>';
+                downloadBtn.style.display = 'none';
+                currentQR = null;
+                return;
+            }
+            const size = parseInt(qrSize.value) || 200;
+            const correction = qrCorrection.value;
+            const color = qrColor.value;
+            const bgColor = qrBgColor.value;
+
+            qrContainer.innerHTML = ''; // Limpiar
+            currentQR = new QRCode(qrContainer, {
+                text: text,
+                width: size,
+                height: size,
+                colorDark: color,
+                colorLight: bgColor,
+                correctLevel: QRCode.CorrectLevel[correction]
+            });
+            downloadBtn.style.display = 'inline-block';
+        }
+
+        downloadBtn.addEventListener('click', () => {
+            if (!currentQR) return;
+            // Obtener el canvas generado por qrcodejs
+            const canvas = qrContainer.querySelector('canvas');
+            if (!canvas) {
+                alert('No se pudo obtener el QR. Genera uno primero.');
+                return;
+            }
+            // Convertir a PNG y descargar
+            const link = document.createElement('a');
+            link.download = 'codigo_qr.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            showToast('Descargando QR como PNG');
+        });
     </script>
 </body>
 </html>
